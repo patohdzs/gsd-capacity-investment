@@ -1,8 +1,14 @@
 import numpy as np
 from scipy.stats import norm
 
+# Approximation for a very large value in std. normal CDF
+GAUSSCDF1 = 5
 
-def compute_ex_ante_value(sigma, cs_value, cost, n_actions):
+
+def compute_action_cutoffs(cs_value, cost):
+    # Get number of actions
+    n_actions = len(cost)
+
     # Create lower and higher cutoffs for each action
     low_eps = np.zeros(n_actions)
     high_eps = np.zeros(n_actions)
@@ -10,16 +16,9 @@ def compute_ex_ante_value(sigma, cs_value, cost, n_actions):
     # Create array actions played with zero probability
     zero_prob = np.zeros(n_actions, dtype=bool)
 
-    # Create array for conditional choice probabilities
-    ccps = np.zeros(n_actions)
-
-    # Approximation for a very large value in std. normal CDF
-    GAUSSCDF1 = 5
-
     # Check that costs are increasing in actions
-    for i in range(n_actions):
-        if i > 0 and cost[i] <= cost[i - 1]:
-            raise ValueError("Investment cost values must be strictly increasing.")
+    if not np.all(np.diff(cost) > 0):
+        raise ValueError("Costs must be strictly increasing.")
 
     last_l = 0
     for i in range(n_actions):
@@ -28,9 +27,7 @@ def compute_ex_ante_value(sigma, cs_value, cost, n_actions):
         if i == n_actions - 1:
             low_eps[i] = -GAUSSCDF1
         else:
-            low_eps[i] = (cs_value[i] - cs_value[i + 1]) / (
-                (cost[i] - cost[i + 1]) * sigma
-            )
+            low_eps[i] = (cs_value[i] - cs_value[i + 1]) / ((cost[i] - cost[i + 1]))
 
         # Assign higher cutoff as the lower cutoff of preceding action
         if i == 0:
@@ -45,7 +42,7 @@ def compute_ex_ante_value(sigma, cs_value, cost, n_actions):
             zero_prob[last_l] = True
             if last_l == 0:
                 break
-            
+
             # Check preceding cutoff
             last_l -= 1
             if zero_prob[last_l]:
@@ -56,24 +53,32 @@ def compute_ex_ante_value(sigma, cs_value, cost, n_actions):
                 low_eps[last_l] = -GAUSSCDF1
             else:
                 low_eps[last_l] = (cs_value[last_l] - cs_value[i + 1]) / (
-                    (cost[last_l] - cost[i + 1]) * sigma
+                    (cost[last_l] - cost[i + 1])
                 )
 
-    # Compute ex-ante value and CCP's
-    ex_ante_value = 0
-    for i in range(n_actions):
-        # Skip actions played with zero probability
-        if zero_prob[i]:
-            continue
+    return high_eps, low_eps, zero_prob
 
-        # Compute CCP's
-        ccps[i] = norm.cdf(high_eps[i]) - norm.cdf(low_eps[i])
-        if ccps[i] < 0 and ccps[i] > -1e-8:
-            ccps[i] = 0
 
-        # Compute ex-ante value
-        if ccps[i] > 0:
-            mideps = (norm.pdf(low_eps[i]) - norm.pdf(high_eps[i])) / ccps[i]
-            ex_ante_value += ccps[i] * (cs_value[i] - sigma * mideps * cost[i])
+def compute_ccps(high_eps, low_eps, zero_prob):
+    # Create array for conditional choice probabilities
+    ccps = np.zeros_like(zero_prob)
 
-    return ex_ante_value, ccps
+    # Compute CCP's
+    cdf_high = norm.cdf(high_eps[~zero_prob])
+    cdf_low = norm.cdf(low_eps[~zero_prob])
+    ccps[~zero_prob] = np.maximum(cdf_high - cdf_low, 0)
+    return ccps
+
+
+def compute_ex_ante_value(cs_values, costs, high_eps, low_eps, ccps):
+    # Compute expected shock between two cutoffs
+    mideps = np.zeros_like(ccps)
+    mideps[~(ccps == 0)] = (
+        norm.pdf(low_eps[~(ccps == 0)]) - norm.pdf(high_eps[~(ccps == 0)])
+    ) / ccps[~(ccps == 0)]
+
+    # Compute ex-ante value
+    ex_ante_value = np.sum(
+        ccps[~(ccps == 0)] * (cs_values[~(ccps == 0)] - mideps * costs[~(ccps == 0)])
+    )
+    return ex_ante_value

@@ -1,11 +1,8 @@
 import numpy as np
 from scipy.stats import norm
 
-# Approximation for a very large value in std. normal CDF
-GAUSSCDF1 = 5
 
-
-def compute_cutoffs(cs_value, cost):
+def compute_cutoffs(cs_value: np.ndarray, cost: np.ndarray) -> tuple[np.ndarray]:
     # Get number of actions
     n_actions = len(cost)
 
@@ -25,13 +22,13 @@ def compute_cutoffs(cs_value, cost):
 
         # Compute lower cutoff
         if i == n_actions - 1:
-            low_eps[i] = -GAUSSCDF1
+            low_eps[i] = -np.inf
         else:
             low_eps[i] = (cs_value[i] - cs_value[i + 1]) / ((cost[i] - cost[i + 1]))
 
         # Assign higher cutoff as the lower cutoff of preceding action
         if i == 0:
-            high_eps[i] = GAUSSCDF1
+            high_eps[i] = np.inf
         else:
             high_eps[i] = low_eps[last_l]
 
@@ -50,7 +47,7 @@ def compute_cutoffs(cs_value, cost):
 
             # Recompute lower cutoff
             if i == n_actions - 1:
-                low_eps[last_l] = -GAUSSCDF1
+                low_eps[last_l] = -np.inf
             else:
                 low_eps[last_l] = (cs_value[last_l] - cs_value[i + 1]) / (
                     (cost[last_l] - cost[i + 1])
@@ -59,9 +56,11 @@ def compute_cutoffs(cs_value, cost):
     return high_eps, low_eps, zero_prob
 
 
-def compute_ccps(high_eps, low_eps, zero_prob):
+def compute_ccps(
+    high_eps: np.ndarray, low_eps: np.ndarray, zero_prob: np.ndarray
+) -> np.ndarray:
     # Create array for conditional choice probabilities
-    ccps = np.zeros_like(zero_prob)
+    ccps = np.zeros_like(high_eps)
 
     # Compute CCP's
     cdf_high = norm.cdf(high_eps[~zero_prob])
@@ -70,15 +69,25 @@ def compute_ccps(high_eps, low_eps, zero_prob):
     return ccps
 
 
-def compute_ex_ante_value(cs_values, costs, high_eps, low_eps, ccps):
+def compute_ex_ante_value(
+    cs_values: np.ndarray,
+    costs: np.ndarray,
+    high_eps: np.ndarray,
+    low_eps: np.ndarray,
+    zero_prob: np.ndarray,
+) -> float:
+    # Compute CCPs
+    ccps = compute_ccps(high_eps, low_eps, zero_prob)
+
     # Compute expected shock between two cutoffs
     mideps = np.zeros_like(ccps)
-    mideps[~(ccps == 0)] = (
-        norm.pdf(low_eps[~(ccps == 0)]) - norm.pdf(high_eps[~(ccps == 0)])
-    ) / ccps[~(ccps == 0)]
+    mideps[~zero_prob] = (
+        norm.pdf(low_eps[~zero_prob]) - norm.pdf(high_eps[~zero_prob])
+    ) / ccps[~zero_prob]
 
     # Compute ex-ante value
     ex_ante_value = np.sum(
-        ccps[~(ccps == 0)] * (cs_values[~(ccps == 0)] - mideps * costs[~(ccps == 0)])
+        ccps[~zero_prob]
+        * (cs_values[~zero_prob] - mideps[~zero_prob] * costs[~zero_prob])
     )
     return ex_ante_value

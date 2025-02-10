@@ -5,7 +5,7 @@ from scipy.stats import norm
 GAUSSCDF1 = 5
 
 
-def compute_action_cutoffs(cs_value, cost):
+def compute_cutoffs(cs_value, cost):
     # Get number of actions
     n_actions = len(cost)
 

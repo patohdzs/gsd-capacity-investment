@@ -1,10 +1,15 @@
 import numpy as np
+import numpy.typing as npt
 from scipy.stats import rv_continuous, norm
 
 
 def compute_cutoffs(
-    cs_values: np.ndarray, costs: np.ndarray
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    cs_values: npt.ArrayLike, costs: npt.ArrayLike
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.bool_]]:
+    # Cast into numpy arrays
+    cs_values = np.asarray(cs_values)
+    costs = np.asarray(costs)
+
     # Get number of actions
     n_actions = len(costs)
 
@@ -59,11 +64,11 @@ def compute_cutoffs(
 
 
 def compute_ccps(
-    high_eps: np.ndarray,
-    low_eps: np.ndarray,
-    zero_prob: np.ndarray,
+    high_eps: npt.NDArray[np.float64],
+    low_eps: npt.NDArray[np.float64],
+    zero_prob: npt.NDArray[np.bool],
     eps_dist: rv_continuous = norm,
-) -> np.ndarray:
+) -> npt.NDArray[np.float64]:
     # Create array for conditional choice probabilities
     ccps = np.zeros_like(high_eps)
 
@@ -75,13 +80,17 @@ def compute_ccps(
 
 
 def compute_ex_ante_value(
-    cs_values: np.ndarray,
-    costs: np.ndarray,
-    high_eps: np.ndarray,
-    low_eps: np.ndarray,
-    zero_prob: np.ndarray,
+    cs_values: npt.ArrayLike,
+    costs: npt.ArrayLike,
+    high_eps: npt.NDArray[np.float64],
+    low_eps: npt.NDArray[np.float64],
+    zero_prob: npt.NDArray[np.bool],
     eps_dist: rv_continuous = norm,
 ) -> float:
+    # Cast into numpy arrays
+    cs_values = np.asarray(cs_values)
+    costs = np.asarray(costs)
+
     # Compute CCPs
     ccps = compute_ccps(high_eps, low_eps, zero_prob, eps_dist)
 

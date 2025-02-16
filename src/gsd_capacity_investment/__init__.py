@@ -2,9 +2,11 @@ import numpy as np
 from scipy.stats import rv_continuous, norm
 
 
-def compute_cutoffs(cs_value: np.ndarray, cost: np.ndarray) -> tuple[np.ndarray]:
+def compute_cutoffs(
+    cs_values: np.ndarray, costs: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     # Get number of actions
-    n_actions = len(cost)
+    n_actions = len(costs)
 
     # Create lower and higher cutoffs for each action
     low_eps = np.zeros(n_actions)
@@ -14,7 +16,7 @@ def compute_cutoffs(cs_value: np.ndarray, cost: np.ndarray) -> tuple[np.ndarray]
     zero_prob = np.zeros(n_actions, dtype=bool)
 
     # Check that costs are increasing in actions
-    if not np.all(np.diff(cost) > 0):
+    if not np.all(np.diff(costs) > 0):
         raise ValueError("Costs must be strictly increasing.")
 
     last_l = 0
@@ -24,7 +26,7 @@ def compute_cutoffs(cs_value: np.ndarray, cost: np.ndarray) -> tuple[np.ndarray]
         if i == n_actions - 1:
             low_eps[i] = -np.inf
         else:
-            low_eps[i] = (cs_value[i + 1] - cs_value[i]) / (cost[i + 1] - cost[i])
+            low_eps[i] = (cs_values[i + 1] - cs_values[i]) / (costs[i + 1] - costs[i])
 
         # Assign higher cutoff as the lower cutoff of preceding action
         if i == 0:
@@ -49,8 +51,8 @@ def compute_cutoffs(cs_value: np.ndarray, cost: np.ndarray) -> tuple[np.ndarray]
             if i == n_actions - 1:
                 low_eps[last_l] = -np.inf
             else:
-                low_eps[last_l] = (cs_value[i + 1] - cs_value[last_l]) / (
-                    (cost[i + 1] - cost[last_l])
+                low_eps[last_l] = (cs_values[i + 1] - cs_values[last_l]) / (
+                    (costs[i + 1] - costs[last_l])
                 )
 
     return high_eps, low_eps, zero_prob

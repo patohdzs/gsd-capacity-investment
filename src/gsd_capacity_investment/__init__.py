@@ -24,7 +24,7 @@ def compute_cutoffs(cs_value: np.ndarray, cost: np.ndarray) -> tuple[np.ndarray]
         if i == n_actions - 1:
             low_eps[i] = -np.inf
         else:
-            low_eps[i] = (cs_value[i] - cs_value[i + 1]) / ((cost[i] - cost[i + 1]))
+            low_eps[i] = (cs_value[i + 1] - cs_value[i]) / (cost[i + 1] - cost[i])
 
         # Assign higher cutoff as the lower cutoff of preceding action
         if i == 0:
@@ -33,7 +33,7 @@ def compute_cutoffs(cs_value: np.ndarray, cost: np.ndarray) -> tuple[np.ndarray]
             high_eps[i] = low_eps[last_l]
 
         last_l = i
-        while low_eps[last_l] > high_eps[last_l]:
+        while low_eps[last_l] >= high_eps[last_l]:
 
             # Mark as zero probability
             zero_prob[last_l] = True
@@ -49,8 +49,8 @@ def compute_cutoffs(cs_value: np.ndarray, cost: np.ndarray) -> tuple[np.ndarray]
             if i == n_actions - 1:
                 low_eps[last_l] = -np.inf
             else:
-                low_eps[last_l] = (cs_value[last_l] - cs_value[i + 1]) / (
-                    (cost[last_l] - cost[i + 1])
+                low_eps[last_l] = (cs_value[i + 1] - cs_value[last_l]) / (
+                    (cost[i + 1] - cost[last_l])
                 )
 
     return high_eps, low_eps, zero_prob

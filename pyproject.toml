@@ -1,7 +1,7 @@
 [project]
 name = "gsd-capacity-investment"
 version = "0.1.0"
-description = "Add your description here"
+description = "A fast Python toolkit for solving dynamic oligopoly models of capacity investment based on Gowrisankaran and Schmidt-Dengler (2025)."
 readme = "README.md"
 authors = [
     { name = "Patricio Hernandez Senosiain", email = "hdzsen.patricio@gmail.com" },

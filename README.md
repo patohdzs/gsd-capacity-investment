@@ -8,5 +8,5 @@ pip install "git+https://github.com/patohdzs/gsd-capacity-investment"
 ```
 
 ## References
-Gowrisankaran, G. and P. Schmidt-Dengler (2023). A computable dynamic oligopoly model
+Gowrisankaran, G. and P. Schmidt-Dengler (2025). A computable dynamic oligopoly model
 of capacity investment. Working Paper.

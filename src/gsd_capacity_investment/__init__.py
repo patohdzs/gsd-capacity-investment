@@ -1,10 +1,17 @@
 import numpy as np
-from scipy.stats import norm
+import numpy.typing as npt
+from scipy.stats import rv_continuous, norm
 
 
-def compute_cutoffs(cs_value: np.ndarray, cost: np.ndarray) -> tuple[np.ndarray]:
+def compute_cutoffs(
+    cs_values: npt.ArrayLike, costs: npt.ArrayLike
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.bool_]]:
+    # Cast into numpy arrays
+    cs_values = np.asarray(cs_values)
+    costs = np.asarray(costs)
+
     # Get number of actions
-    n_actions = len(cost)
+    n_actions = len(costs)
 
     # Create lower and higher cutoffs for each action
     low_eps = np.zeros(n_actions)
@@ -14,7 +21,7 @@ def compute_cutoffs(cs_value: np.ndarray, cost: np.ndarray) -> tuple[np.ndarray]
     zero_prob = np.zeros(n_actions, dtype=bool)
 
     # Check that costs are increasing in actions
-    if not np.all(np.diff(cost) > 0):
+    if not np.all(np.diff(costs) > 0):
         raise ValueError("Costs must be strictly increasing.")
 
     last_l = 0
@@ -24,7 +31,7 @@ def compute_cutoffs(cs_value: np.ndarray, cost: np.ndarray) -> tuple[np.ndarray]
         if i == n_actions - 1:
             low_eps[i] = -np.inf
         else:
-            low_eps[i] = (cs_value[i + 1] - cs_value[i]) / (cost[i + 1] - cost[i])
+            low_eps[i] = (cs_values[i + 1] - cs_values[i]) / (costs[i + 1] - costs[i])
 
         # Assign higher cutoff as the lower cutoff of preceding action
         if i == 0:
@@ -49,40 +56,48 @@ def compute_cutoffs(cs_value: np.ndarray, cost: np.ndarray) -> tuple[np.ndarray]
             if i == n_actions - 1:
                 low_eps[last_l] = -np.inf
             else:
-                low_eps[last_l] = (cs_value[i + 1] - cs_value[last_l]) / (
-                    (cost[i + 1] - cost[last_l])
+                low_eps[last_l] = (cs_values[i + 1] - cs_values[last_l]) / (
+                    (costs[i + 1] - costs[last_l])
                 )
 
     return high_eps, low_eps, zero_prob
 
 
 def compute_ccps(
-    high_eps: np.ndarray, low_eps: np.ndarray, zero_prob: np.ndarray
-) -> np.ndarray:
+    high_eps: npt.NDArray[np.float64],
+    low_eps: npt.NDArray[np.float64],
+    zero_prob: npt.NDArray[np.bool],
+    eps_dist: rv_continuous = norm,
+) -> npt.NDArray[np.float64]:
     # Create array for conditional choice probabilities
     ccps = np.zeros_like(high_eps)
 
     # Compute CCP's
-    cdf_high = norm.cdf(high_eps[~zero_prob])
-    cdf_low = norm.cdf(low_eps[~zero_prob])
+    cdf_high = eps_dist.cdf(high_eps[~zero_prob])
+    cdf_low = eps_dist.cdf(low_eps[~zero_prob])
     ccps[~zero_prob] = np.maximum(cdf_high - cdf_low, 0)
     return ccps
 
 
 def compute_ex_ante_value(
-    cs_values: np.ndarray,
-    costs: np.ndarray,
-    high_eps: np.ndarray,
-    low_eps: np.ndarray,
-    zero_prob: np.ndarray,
+    cs_values: npt.ArrayLike,
+    costs: npt.ArrayLike,
+    high_eps: npt.NDArray[np.float64],
+    low_eps: npt.NDArray[np.float64],
+    zero_prob: npt.NDArray[np.bool],
+    eps_dist: rv_continuous = norm,
 ) -> float:
+    # Cast into numpy arrays
+    cs_values = np.asarray(cs_values)
+    costs = np.asarray(costs)
+
     # Compute CCPs
-    ccps = compute_ccps(high_eps, low_eps, zero_prob)
+    ccps = compute_ccps(high_eps, low_eps, zero_prob, eps_dist)
 
     # Compute expected shock between two cutoffs
     mideps = np.zeros_like(ccps)
     mideps[~zero_prob] = (
-        norm.pdf(low_eps[~zero_prob]) - norm.pdf(high_eps[~zero_prob])
+        eps_dist.pdf(low_eps[~zero_prob]) - eps_dist.pdf(high_eps[~zero_prob])
     ) / ccps[~zero_prob]
 
     # Compute ex-ante value

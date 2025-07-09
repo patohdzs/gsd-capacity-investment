@@ -1,6 +1,6 @@
 import numpy as np
 import numpy.typing as npt
-from scipy.stats import rv_continuous, norm
+from scipy import stats
 
 
 def compute_cutoffs(
@@ -67,14 +67,13 @@ def compute_ccps(
     high_eps: npt.NDArray[np.float64],
     low_eps: npt.NDArray[np.float64],
     zero_prob: npt.NDArray[np.bool],
-    eps_dist: rv_continuous = norm,
 ) -> npt.NDArray[np.float64]:
     # Create array for conditional choice probabilities
     ccps = np.zeros_like(high_eps)
 
     # Compute CCP's
-    cdf_high = eps_dist.cdf(high_eps[~zero_prob])
-    cdf_low = eps_dist.cdf(low_eps[~zero_prob])
+    cdf_high = stats.norm.cdf(high_eps[~zero_prob])
+    cdf_low = stats.norm.cdf(low_eps[~zero_prob])
     ccps[~zero_prob] = np.maximum(cdf_high - cdf_low, 0)
     return ccps
 
@@ -85,19 +84,18 @@ def compute_ex_ante_value(
     high_eps: npt.NDArray[np.float64],
     low_eps: npt.NDArray[np.float64],
     zero_prob: npt.NDArray[np.bool],
-    eps_dist: rv_continuous = norm,
 ) -> float:
     # Cast into numpy arrays
     cs_values = np.asarray(cs_values)
     costs = np.asarray(costs)
 
     # Compute CCPs
-    ccps = compute_ccps(high_eps, low_eps, zero_prob, eps_dist)
+    ccps = compute_ccps(high_eps, low_eps, zero_prob)
 
     # Compute expected shock between two cutoffs
     mideps = np.zeros_like(ccps)
     mideps[~zero_prob] = (
-        eps_dist.pdf(low_eps[~zero_prob]) - eps_dist.pdf(high_eps[~zero_prob])
+        stats.norm.pdf(low_eps[~zero_prob]) - stats.norm.pdf(high_eps[~zero_prob])
     ) / ccps[~zero_prob]
 
     # Compute ex-ante value

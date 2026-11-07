@@ -61,7 +61,11 @@ def compute_cutoffs(
     return high_eps, low_eps, zero_prob
 
 
-def compute_ccps(high_eps, low_eps, zero_prob):
+def compute_ccps(
+    high_eps: npt.NDArray[np.float64],
+    low_eps: npt.NDArray[np.float64],
+    zero_prob: npt.NDArray[np.bool_],
+) -> npt.NDArray[np.float64]:
     # Create array of conditional choice probabilities
     ccps = np.zeros_like(high_eps)
 
@@ -81,7 +85,7 @@ def compute_ex_ante_value(
     costs: npt.ArrayLike,
     high_eps: npt.NDArray[np.float64],
     low_eps: npt.NDArray[np.float64],
-    zero_prob: npt.NDArray[np.bool],
+    zero_prob: npt.NDArray[np.bool_],
 ) -> float:
     # Cast into numpy arrays
     cs_values = np.asarray(cs_values)
@@ -89,16 +93,8 @@ def compute_ex_ante_value(
 
     # Compute CCPs
     ccps = compute_ccps(high_eps, low_eps, zero_prob)
+    live = ~zero_prob
 
-    # Compute expected shock between two cutoffs
-    mideps = np.zeros_like(ccps)
-    mideps[~zero_prob] = (
-        stats.norm.pdf(low_eps[~zero_prob]) - stats.norm.pdf(high_eps[~zero_prob])
-    ) / ccps[~zero_prob]
-
-    # Compute ex-ante value
-    ex_ante_value = np.sum(
-        ccps[~zero_prob]
-        * (cs_values[~zero_prob] - mideps[~zero_prob] * costs[~zero_prob])
-    )
-    return ex_ante_value
+    # E[eps * 1{low < eps < high}] = pdf(low) - pdf(high)
+    eps_mass = stats.norm.pdf(low_eps[live]) - stats.norm.pdf(high_eps[live])
+    return np.sum(ccps[live] * cs_values[live] - costs[live] * eps_mass)

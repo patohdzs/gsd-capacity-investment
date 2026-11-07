@@ -26,7 +26,6 @@ def compute_cutoffs(
 
     last_l = 0
     for i in range(n_actions):
-
         # Compute lower cutoff
         if i == n_actions - 1:
             low_eps[i] = -np.inf
@@ -41,7 +40,6 @@ def compute_cutoffs(
 
         last_l = i
         while low_eps[last_l] >= high_eps[last_l]:
-
             # Mark as zero probability
             zero_prob[last_l] = True
             if last_l == 0:
@@ -57,24 +55,24 @@ def compute_cutoffs(
                 low_eps[last_l] = -np.inf
             else:
                 low_eps[last_l] = (cs_values[i + 1] - cs_values[last_l]) / (
-                    (costs[i + 1] - costs[last_l])
+                    costs[i + 1] - costs[last_l]
                 )
 
     return high_eps, low_eps, zero_prob
 
 
-def compute_ccps(
-    high_eps: npt.NDArray[np.float64],
-    low_eps: npt.NDArray[np.float64],
-    zero_prob: npt.NDArray[np.bool],
-) -> npt.NDArray[np.float64]:
-    # Create array for conditional choice probabilities
+def compute_ccps(high_eps, low_eps, zero_prob):
+    # Create array of conditional choice probabilities
     ccps = np.zeros_like(high_eps)
 
-    # Compute CCP's
-    cdf_high = stats.norm.cdf(high_eps[~zero_prob])
-    cdf_low = stats.norm.cdf(low_eps[~zero_prob])
-    ccps[~zero_prob] = np.maximum(cdf_high - cdf_low, 0)
+    # Filter out zero-prob actions
+    live = ~zero_prob
+    low, high = low_eps[live], high_eps[live]
+
+    # Take differences in the tail where the normal CDF keeps its precision
+    upper_tail = stats.norm.sf(low) - stats.norm.sf(high)
+    lower_tail = stats.norm.cdf(high) - stats.norm.cdf(low)
+    ccps[live] = np.maximum(np.where(low > 0, upper_tail, lower_tail), 0)
     return ccps
 
 
